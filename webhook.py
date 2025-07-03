@@ -27,15 +27,15 @@ def salvar_dados(dados):
     with open(DADOS_PAGAMENTO_PATH, "w", encoding="utf-8") as f:
         json.dump(dados, f, indent=2)
 
-def adicionar_coins(account_id, valor):
+def adicionar_coins(character_id, valor):
     try:
         conn = pymysql.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("UPDATE characters SET coins = coins + %s WHERE id = %s", (valor, account_id))
+        cursor.execute("UPDATE characters SET coins = coins + %s WHERE id = %s", (valor, character_id))
         conn.commit()
         cursor.close()
         conn.close()
-        print(f"[DB] Coins adicionados com sucesso para account_id {account_id}")
+        print(f"[DB] Coins adicionados com sucesso para character_id {character_id}")
         return True
     except Exception as e:
         print(f"[ERRO DB] {e}")
@@ -66,22 +66,22 @@ def webhook():
         pagamento = todos.get(str(payment_id))
 
         if pagamento:
-            account_id = pagamento["account_id"]
+            character_id = pagamento["character_id"]
             valor = pagamento["valor"]
             nome = pagamento["nome"]
 
-            print(f"[WEBHOOK] Pagamento aprovado! ID: {payment_id} | Usuário: {nome} | Valor: R${valor} | ID Discord: {account_id}")
+            print(f"[WEBHOOK] Pagamento aprovado! ID: {payment_id} | Usuário: {nome} | Valor: R${valor} | ID Personagem: {character_id}")
 
-            if adicionar_coins(account_id, int(valor)):
+            if adicionar_coins(character_id, int(valor)):
                 try:
                     response = requests.post("http://localhost:5001/confirmar_pagamento", json={
-                        "discord_id": account_id,
+                        "discord_id": character_id,
                         "valor": valor,
                         "nome": nome
                     })
 
                     if response.status_code == 200:
-                        print(f"[WEBHOOK] ✅ Coins entregues e log enviado para {account_id}")
+                        print(f"[WEBHOOK] ✅ Coins entregues e log enviado para {character_id}")
                     else:
                         print(f"[WEBHOOK] ⚠️ Falha ao enviar log: {response.status_code} - {response.text}")
 
@@ -91,7 +91,7 @@ def webhook():
                 del todos[str(payment_id)]
                 salvar_dados(todos)
             else:
-                print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {account_id}")
+                print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {character_id}")
         else:
             print(f"[WEBHOOK] ⚠️ Pagamento {payment_id} não encontrado no JSON")
 
@@ -105,7 +105,6 @@ def webhook_fallback():
     if topic == "payment" and payment_id:
         print(f"[WEBHOOK] Notificação recebida via fallback. ID: {payment_id}")
 
-        # Consulta do pagamento usando SDK
         result = sdk.payment().get(payment_id)
         data = result["response"]
 
@@ -114,22 +113,22 @@ def webhook_fallback():
             pagamento = todos.get(str(payment_id))
 
             if pagamento:
-                account_id = pagamento["account_id"]
+                character_id = pagamento["character_id"]
                 valor = pagamento["valor"]
                 nome = pagamento["nome"]
 
-                print(f"[WEBHOOK] Pagamento aprovado! ID: {payment_id} | Usuário: {nome} | Valor: R${valor} | ID Discord: {account_id}")
+                print(f"[WEBHOOK] Pagamento aprovado! ID: {payment_id} | Usuário: {nome} | Valor: R${valor} | ID Personagem: {character_id}")
 
-                if adicionar_coins(account_id, int(valor)):
+                if adicionar_coins(character_id, int(valor)):
                     try:
                         response = requests.post("http://localhost:5001/confirmar_pagamento", json={
-                            "discord_id": account_id,
+                            "discord_id": character_id,
                             "valor": valor,
                             "nome": nome
                         })
 
                         if response.status_code == 200:
-                            print(f"[WEBHOOK] ✅ Coins entregues e log enviado para {account_id}")
+                            print(f"[WEBHOOK] ✅ Coins entregues e log enviado para {character_id}")
                         else:
                             print(f"[WEBHOOK] ⚠️ Falha ao enviar log: {response.status_code} - {response.text}")
 
@@ -139,7 +138,7 @@ def webhook_fallback():
                     del todos[str(payment_id)]
                     salvar_dados(todos)
                 else:
-                    print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {account_id}")
+                    print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {character_id}")
             else:
                 print(f"[WEBHOOK] ⚠️ Pagamento {payment_id} não encontrado no JSON")
 

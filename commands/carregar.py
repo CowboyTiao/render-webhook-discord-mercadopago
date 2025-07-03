@@ -8,8 +8,8 @@ from io import BytesIO
 from PIL import Image
 
 # Apenas para testes locais (o real crédito é feito pelo webhook)
-def adicionar_coins(account_id: int, quantidade: int):
-    print(f"[DEBUG] Adicionar {quantidade} coins para o ID do personagem: {account_id}")
+def adicionar_coins(character_id: int, quantidade: int):
+    print(f"[DEBUG] Adicionar {quantidade} coins para o ID do personagem: {character_id}")
 
 class ComprarView(discord.ui.View):
     def __init__(self):
@@ -31,11 +31,11 @@ class ComprarView(discord.ui.View):
                         await interaction.response.send_message("❌ Valor mínimo: R$1", ephemeral=True)
                         return
 
-                    account_id = int(self.id_personagem.value)
+                    character_id = int(self.id_personagem.value)
 
                     pagamento = criar_pagamento_pix(
                         valor_reais,
-                        account_id,
+                        character_id,
                         self.nome.value.strip(),
                         self.sobrenome.value.strip(),
                         self.cpf.value.strip()

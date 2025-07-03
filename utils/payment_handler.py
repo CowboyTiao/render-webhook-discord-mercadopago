@@ -12,7 +12,7 @@ sdk = mercadopago.SDK("APP_USR-8739880550401490-062716-ce4741df8269258e6066355f9
 # Caminho para o arquivo de pagamentos pendentes
 PAGAMENTOS_JSON = "pagamentos.json"
 
-def salvar_pagamento(pagamento_id, account_id, valor, nome, sobrenome, cpf):
+def salvar_pagamento(pagamento_id, character_id, valor, nome, sobrenome, cpf):
     dados = {}
     if os.path.exists(PAGAMENTOS_JSON):
         with open(PAGAMENTOS_JSON, "r", encoding="utf-8") as f:
@@ -22,7 +22,7 @@ def salvar_pagamento(pagamento_id, account_id, valor, nome, sobrenome, cpf):
                 dados = {}
 
     dados[str(pagamento_id)] = {
-        "account_id": account_id,
+        "character_id": character_id,
         "valor": valor,
         "nome": nome,
         "sobrenome": sobrenome,
@@ -32,19 +32,19 @@ def salvar_pagamento(pagamento_id, account_id, valor, nome, sobrenome, cpf):
     with open(PAGAMENTOS_JSON, "w", encoding="utf-8") as f:
         json.dump(dados, f, indent=2)
 
-def criar_pagamento_pix(valor, account_id, nome, sobrenome, cpf):
-    referencia_unica = f"Account-{account_id}-TX-{uuid.uuid4()}"
+def criar_pagamento_pix(valor, character_id, nome, sobrenome, cpf):
+    referencia_unica = f"Character-{character_id}-TX-{uuid.uuid4()}"
 
     try:
         payment_data = {
             "transaction_amount": float(valor),
             "description": "Compra de Coins no Discord",
             "payment_method_id": "pix",
-            "notification_url": "https://render-webhook-discord-mercadopago.onrender.com/webhook",  # Use HTTPS real com TLS 1.2+
+            "notification_url": "https://render-webhook-discord-mercadopago.onrender.com/webhook",
             "external_reference": referencia_unica,
             "statement_descriptor": "DiscordCoins",
             "payer": {
-                "email": f"{account_id}@example.com",
+                "email": f"{character_id}@example.com",
                 "first_name": nome,
                 "last_name": sobrenome,
                 "identification": {
@@ -76,11 +76,11 @@ def criar_pagamento_pix(valor, account_id, nome, sobrenome, cpf):
 
         if response["status"] == 201:
             pagamento_id = data["id"]
-            salvar_pagamento(pagamento_id, account_id, valor, nome, sobrenome, cpf)
+            salvar_pagamento(pagamento_id, character_id, valor, nome, sobrenome, cpf)
             return {
                 "id": pagamento_id,
                 "qrcode_base64": data["point_of_interaction"]["transaction_data"]["qr_code_base64"],
-                "qrcode": data["point_of_interaction"]["transaction_data"]["qr_code"]  # Adicionado para exibir código no embed
+                "qrcode": data["point_of_interaction"]["transaction_data"]["qr_code"]
             }
 
         else:
