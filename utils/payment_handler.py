@@ -40,7 +40,7 @@ def criar_pagamento_pix(valor, account_id, nome, sobrenome, cpf):
             "transaction_amount": float(valor),
             "description": "Compra de Coins no Discord",
             "payment_method_id": "pix",
-            "notification_url": "https://render-webhook-discord-mercadopago.onrender.com/",  # Use HTTPS real com TLS 1.2+
+            "notification_url": "https://render-webhook-discord-mercadopago.onrender.com/webhook",  # Use HTTPS real com TLS 1.2+
             "external_reference": referencia_unica,
             "statement_descriptor": "DiscordCoins",
             "payer": {
