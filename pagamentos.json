@@ -26,5 +26,19 @@
     "nome": "Dek",
     "sobrenome": "TIR",
     "cpf": "50956480837"
+  },
+  "116742920293": {
+    "character_id": 3,
+    "valor": 1.0,
+    "nome": "Deksd",
+    "sobrenome": "teste",
+    "cpf": "50956480837"
+  },
+  "116742854411": {
+    "character_id": 3,
+    "valor": 1.0,
+    "nome": "TESTE",
+    "sobrenome": "TESTE",
+    "cpf": "50956480837"
   }
 }

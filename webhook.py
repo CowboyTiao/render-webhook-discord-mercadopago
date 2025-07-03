@@ -64,9 +64,9 @@ def webhook():
     data = result["response"]
 
     if data.get("status") == "approved":
-        time.sleep(2)  # ⏳ tempo de espera ANTES da tentativa de ler o JSON
+        time.sleep(5)  # ⏳ tempo de espera ANTES da tentativa de ler o JSON
 
-        tentativas = 3
+        tentativas = 5
         pagamento = None
 
         for i in range(tentativas):
@@ -168,8 +168,59 @@ def webhook_fallback():
                 print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {character_id}")
 
     return jsonify({"status": "received"}), 200
+import threading
+
+def verificador_pendencias():
+    while True:
+        print("[VERIFICADOR] Iniciando varredura de pagamentos pendentes...")
+        dados = carregar_dados()
+
+        if not dados:
+            print("[VERIFICADOR] Nenhum pagamento pendente.")
+        else:
+            for payment_id, pagamento in list(dados.items()):
+                try:
+                    result = sdk.payment().get(payment_id)
+                    data = result["response"]
+                    status = data.get("status", "")
+
+                    if status == "approved":
+                        character_id = pagamento["character_id"]
+                        valor = pagamento["valor"]
+                        nome = pagamento["nome"]
+
+                        print(f"[VERIFICADOR] ⚠️ Pagamento {payment_id} aprovado mas ainda não processado!")
+                        if adicionar_coins(character_id, int(valor)):
+                            try:
+                                response = requests.post("http://localhost:5001/confirmar_pagamento", json={
+                                    "discord_id": character_id,
+                                    "valor": valor,
+                                    "nome": nome
+                                })
+                                if response.status_code == 200:
+                                    print(f"[VERIFICADOR] ✅ Coins entregues e log enviado para {character_id}")
+                                else:
+                                    print(f"[VERIFICADOR] ⚠️ Falha ao enviar log: {response.status_code} - {response.text}")
+                            except Exception as e:
+                                print(f"[VERIFICADOR] ❌ ERRO ao enviar log para o bot: {e}")
+
+                            # Remove do JSON
+                            del dados[payment_id]
+                            salvar_dados(dados)
+                        else:
+                            print(f"[VERIFICADOR] ❌ Erro ao adicionar coins para {character_id}")
+
+                except Exception as e:
+                    print(f"[VERIFICADOR] ❌ Erro ao consultar pagamento {payment_id}: {e}")
+
+        time.sleep(30)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Webhook do Mercado Pago está online com sucesso na porta {port}!")
+
+    # Inicia o verificador automático em segundo plano
+    threading.Thread(target=verificador_pendencias, daemon=True).start()
+
     app.run(host="0.0.0.0", port=port)
+
