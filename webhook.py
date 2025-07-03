@@ -96,6 +96,7 @@ def webhook():
             print(f"[WEBHOOK] ⚠️ Pagamento {payment_id} não encontrado no JSON")
 
     return jsonify({"status": "received"}), 200
+
 @app.route("/", methods=["POST"])
 def webhook_fallback():
     payment_id = request.args.get("id")
@@ -144,6 +145,8 @@ def webhook_fallback():
 
     return jsonify({"status": "received"}), 200
 
+# ✅ Ajustado para funcionar no Render pegando a porta correta via variável de ambiente
 if __name__ == "__main__":
-    print("Webhook do Mercado Pago está online com sucesso!")
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Webhook do Mercado Pago está online com sucesso na porta {port}!")
+    app.run(host="0.0.0.0", port=port)
