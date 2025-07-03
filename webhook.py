@@ -62,8 +62,24 @@ def webhook():
     data = result["response"]
 
     if data.get("status") == "approved":
-        todos = carregar_dados()
-        pagamento = todos.get(str(payment_id))
+        import time  # já está provavelmente no topo, senão adicione
+
+        tentativas = 3
+        pagamento = None
+
+        for i in range(tentativas):
+            todos = carregar_dados()
+            pagamento = todos.get(str(payment_id))
+            if pagamento:
+                print(f"[WEBHOOK] ✅ Pagamento {payment_id} encontrado no JSON na tentativa {i+1}")
+                break
+            print(f"[WEBHOOK] ⚠️ Tentativa {i+1}/{tentativas}: Pagamento {payment_id} ainda não está no JSON...")
+            time.sleep(1)
+
+        if not pagamento:
+            print(f"[WEBHOOK] ❌ Pagamento {payment_id} não localizado após {tentativas} tentativas.")
+            return jsonify({"status": "ignored"}), 200
+
 
         if pagamento:
             character_id = pagamento["character_id"]
@@ -109,8 +125,24 @@ def webhook_fallback():
         data = result["response"]
 
         if data.get("status") == "approved":
-            todos = carregar_dados()
-            pagamento = todos.get(str(payment_id))
+            import time  # já está provavelmente no topo, senão adicione
+
+            tentativas = 3
+            pagamento = None
+
+            for i in range(tentativas):
+                todos = carregar_dados()
+                pagamento = todos.get(str(payment_id))
+                if pagamento:
+                    print(f"[WEBHOOK] ✅ Pagamento {payment_id} encontrado no JSON na tentativa {i+1}")
+                    break
+                print(f"[WEBHOOK] ⚠️ Tentativa {i+1}/{tentativas}: Pagamento {payment_id} ainda não está no JSON...")
+                time.sleep(1)
+
+            if not pagamento:
+                print(f"[WEBHOOK] ❌ Pagamento {payment_id} não localizado após {tentativas} tentativas.")
+                return jsonify({"status": "ignored"}), 200
+
 
             if pagamento:
                 character_id = pagamento["character_id"]
