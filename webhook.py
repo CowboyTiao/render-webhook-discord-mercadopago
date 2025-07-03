@@ -4,17 +4,20 @@ import json
 import os
 import pymysql
 import requests
+import time  # necessário para o sleep
 
 app = Flask(__name__)
 sdk = mercadopago.SDK("APP_USR-8739880550401490-062716-ce4741df8269258e6066355f9156772f-1972922133")
-DADOS_PAGAMENTO_PATH = "pagamentos.json"
+
+# Caminho absoluto do JSON, garante que está na pasta do webhook
+DADOS_PAGAMENTO_PATH = os.path.join(os.path.dirname(__file__), "pagamentos.json")
 
 # CONFIGURAÇÃO DO BANCO
 DB_CONFIG = {
     "host": "localhost",
     "user": "discordbot",
     "password": "senha123",
-    "database": "bewitched"         
+    "database": "bewitched"
 }
 
 def carregar_dados():
@@ -41,7 +44,6 @@ def adicionar_coins(character_id, valor):
         print(f"[ERRO DB] {e}")
         return False
 
-# ✅ Adicionado para confirmar status da aplicação online
 @app.route("/", methods=["GET"])
 def root():
     return "Servidor do Webhook Mercado Pago online!", 200
@@ -62,7 +64,7 @@ def webhook():
     data = result["response"]
 
     if data.get("status") == "approved":
-        import time  # já está provavelmente no topo, senão adicione
+        time.sleep(2)  # ⏳ tempo de espera ANTES da tentativa de ler o JSON
 
         tentativas = 3
         pagamento = None
@@ -80,8 +82,64 @@ def webhook():
             print(f"[WEBHOOK] ❌ Pagamento {payment_id} não localizado após {tentativas} tentativas.")
             return jsonify({"status": "ignored"}), 200
 
+        character_id = pagamento["character_id"]
+        valor = pagamento["valor"]
+        nome = pagamento["nome"]
 
-        if pagamento:
+        print(f"[WEBHOOK] Pagamento aprovado! ID: {payment_id} | Usuário: {nome} | Valor: R${valor} | ID Personagem: {character_id}")
+
+        if adicionar_coins(character_id, int(valor)):
+            try:
+                response = requests.post("http://localhost:5001/confirmar_pagamento", json={
+                    "discord_id": character_id,
+                    "valor": valor,
+                    "nome": nome
+                })
+
+                if response.status_code == 200:
+                    print(f"[WEBHOOK] ✅ Coins entregues e log enviado para {character_id}")
+                else:
+                    print(f"[WEBHOOK] ⚠️ Falha ao enviar log: {response.status_code} - {response.text}")
+
+            except Exception as e:
+                print(f"[WEBHOOK] ❌ ERRO ao enviar log para o bot: {e}")
+
+            del todos[str(payment_id)]
+            salvar_dados(todos)
+        else:
+            print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {character_id}")
+
+    return jsonify({"status": "received"}), 200
+
+@app.route("/", methods=["POST"])
+def webhook_fallback():
+    payment_id = request.args.get("id")
+    topic = request.args.get("topic")
+
+    if topic == "payment" and payment_id:
+        print(f"[WEBHOOK] Notificação recebida via fallback. ID: {payment_id}")
+        result = sdk.payment().get(payment_id)
+        data = result["response"]
+
+        if data.get("status") == "approved":
+            time.sleep(2)  # ⏳ tempo de espera ANTES da tentativa de ler o JSON
+
+            tentativas = 3
+            pagamento = None
+
+            for i in range(tentativas):
+                todos = carregar_dados()
+                pagamento = todos.get(str(payment_id))
+                if pagamento:
+                    print(f"[WEBHOOK] ✅ Pagamento {payment_id} encontrado no JSON na tentativa {i+1}")
+                    break
+                print(f"[WEBHOOK] ⚠️ Tentativa {i+1}/{tentativas}: Pagamento {payment_id} ainda não está no JSON...")
+                time.sleep(1)
+
+            if not pagamento:
+                print(f"[WEBHOOK] ❌ Pagamento {payment_id} não localizado após {tentativas} tentativas.")
+                return jsonify({"status": "ignored"}), 200
+
             character_id = pagamento["character_id"]
             valor = pagamento["valor"]
             nome = pagamento["nome"]
@@ -108,75 +166,9 @@ def webhook():
                 salvar_dados(todos)
             else:
                 print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {character_id}")
-        else:
-            print(f"[WEBHOOK] ⚠️ Pagamento {payment_id} não encontrado no JSON")
 
     return jsonify({"status": "received"}), 200
 
-@app.route("/", methods=["POST"])
-def webhook_fallback():
-    payment_id = request.args.get("id")
-    topic = request.args.get("topic")
-
-    if topic == "payment" and payment_id:
-        print(f"[WEBHOOK] Notificação recebida via fallback. ID: {payment_id}")
-
-        result = sdk.payment().get(payment_id)
-        data = result["response"]
-
-        if data.get("status") == "approved":
-            import time  # já está provavelmente no topo, senão adicione
-
-            tentativas = 3
-            pagamento = None
-
-            for i in range(tentativas):
-                todos = carregar_dados()
-                pagamento = todos.get(str(payment_id))
-                if pagamento:
-                    print(f"[WEBHOOK] ✅ Pagamento {payment_id} encontrado no JSON na tentativa {i+1}")
-                    break
-                print(f"[WEBHOOK] ⚠️ Tentativa {i+1}/{tentativas}: Pagamento {payment_id} ainda não está no JSON...")
-                time.sleep(1)
-
-            if not pagamento:
-                print(f"[WEBHOOK] ❌ Pagamento {payment_id} não localizado após {tentativas} tentativas.")
-                return jsonify({"status": "ignored"}), 200
-
-
-            if pagamento:
-                character_id = pagamento["character_id"]
-                valor = pagamento["valor"]
-                nome = pagamento["nome"]
-
-                print(f"[WEBHOOK] Pagamento aprovado! ID: {payment_id} | Usuário: {nome} | Valor: R${valor} | ID Personagem: {character_id}")
-
-                if adicionar_coins(character_id, int(valor)):
-                    try:
-                        response = requests.post("http://localhost:5001/confirmar_pagamento", json={
-                            "discord_id": character_id,
-                            "valor": valor,
-                            "nome": nome
-                        })
-
-                        if response.status_code == 200:
-                            print(f"[WEBHOOK] ✅ Coins entregues e log enviado para {character_id}")
-                        else:
-                            print(f"[WEBHOOK] ⚠️ Falha ao enviar log: {response.status_code} - {response.text}")
-
-                    except Exception as e:
-                        print(f"[WEBHOOK] ❌ ERRO ao enviar log para o bot: {e}")
-
-                    del todos[str(payment_id)]
-                    salvar_dados(todos)
-                else:
-                    print(f"[WEBHOOK] ❌ Erro ao adicionar coins para {character_id}")
-            else:
-                print(f"[WEBHOOK] ⚠️ Pagamento {payment_id} não encontrado no JSON")
-
-    return jsonify({"status": "received"}), 200
-
-# ✅ Ajustado para funcionar no Render pegando a porta correta via variável de ambiente
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Webhook do Mercado Pago está online com sucesso na porta {port}!")
