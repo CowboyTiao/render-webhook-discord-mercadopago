@@ -13,13 +13,19 @@ sdk = mercadopago.SDK("APP_USR-8739880550401490-062716-ce4741df8269258e6066355f9
 PAGAMENTOS_JSON = "pagamentos.json"
 
 def salvar_pagamento(pagamento_id, character_id, valor, nome, sobrenome, cpf):
+    print(f"[SALVAR] Iniciando salvamento do pagamento {pagamento_id}")
     dados = {}
     if os.path.exists(PAGAMENTOS_JSON):
-        with open(PAGAMENTOS_JSON, "r", encoding="utf-8") as f:
-            try:
+        try:
+            with open(PAGAMENTOS_JSON, "r", encoding="utf-8") as f:
                 dados = json.load(f)
-            except json.JSONDecodeError:
-                dados = {}
+                print(f"[SALVAR] JSON carregado com sucesso: {len(dados)} registro(s)")
+        except json.JSONDecodeError as e:
+            print(f"[SALVAR] ⚠️ Erro ao carregar JSON: {e}")
+            dados = {}
+        except Exception as e:
+            print(f"[SALVAR] ❌ Erro inesperado ao ler JSON: {e}")
+            dados = {}
 
     dados[str(pagamento_id)] = {
         "character_id": character_id,
@@ -29,11 +35,16 @@ def salvar_pagamento(pagamento_id, character_id, valor, nome, sobrenome, cpf):
         "cpf": cpf
     }
 
-    with open(PAGAMENTOS_JSON, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=2)
+    try:
+        with open(PAGAMENTOS_JSON, "w", encoding="utf-8") as f:
+            json.dump(dados, f, indent=2)
+        print(f"[SALVAR] Pagamento {pagamento_id} salvo com sucesso!")
+    except Exception as e:
+        print(f"[SALVAR] ❌ Erro ao salvar JSON: {e}")
 
 def criar_pagamento_pix(valor, character_id, nome, sobrenome, cpf):
     referencia_unica = f"Character-{character_id}-TX-{uuid.uuid4()}"
+    print(f"[CRIAR] Iniciando criação de pagamento PIX para Character ID {character_id} | Valor: R${valor}")
 
     try:
         payment_data = {
@@ -71,12 +82,17 @@ def criar_pagamento_pix(valor, character_id, nome, sobrenome, cpf):
             }
         }
 
+        print(f"[CRIAR] Enviando pagamento para Mercado Pago...")
         response = sdk.payment().create(payment_data)
         data = response["response"]
 
+        print(f"[CRIAR] Resposta recebida do Mercado Pago: {data.get('id')} | Status: {data.get('status')}")
+
         if response["status"] == 201:
             pagamento_id = data["id"]
+            print(f"[CRIAR] Pagamento criado com sucesso. ID: {pagamento_id}")
             salvar_pagamento(pagamento_id, character_id, valor, nome, sobrenome, cpf)
+
             return {
                 "id": pagamento_id,
                 "qrcode_base64": data["point_of_interaction"]["transaction_data"]["qr_code_base64"],
@@ -84,7 +100,10 @@ def criar_pagamento_pix(valor, character_id, nome, sobrenome, cpf):
             }
 
         else:
-            return {"message": data.get("message", "Erro desconhecido")}
+            erro = data.get("message", "Erro desconhecido")
+            print(f"[CRIAR] ❌ Erro na criação do pagamento: {erro}")
+            return {"message": erro}
 
     except Exception as e:
+        print(f"[CRIAR] ❌ Exceção ao criar pagamento: {e}")
         return {"message": str(e)}
