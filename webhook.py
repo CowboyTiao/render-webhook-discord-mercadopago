@@ -12,9 +12,9 @@ DADOS_PAGAMENTO_PATH = "pagamentos.json"
 # CONFIGURAÇÃO DO BANCO
 DB_CONFIG = {
     "host": "localhost",
-    "user": "root",
-    "password": "suasenha",
-    "database": "bewitched"
+    "user": "discordbot",
+    "password": "senha123",
+    "database": "bewitched"         
 }
 
 def carregar_dados():
@@ -31,18 +31,20 @@ def adicionar_coins(account_id, valor):
     try:
         conn = pymysql.connect(**DB_CONFIG)
         cursor = conn.cursor()
-
-        # Atualiza os coins do usuário
         cursor.execute("UPDATE characters SET coins = coins + %s WHERE id = %s", (valor, account_id))
         conn.commit()
         cursor.close()
         conn.close()
         print(f"[DB] Coins adicionados com sucesso para account_id {account_id}")
         return True
-
     except Exception as e:
         print(f"[ERRO DB] {e}")
         return False
+
+# ✅ Adicionado para confirmar status da aplicação online
+@app.route("/", methods=["GET"])
+def root():
+    return "Servidor do Webhook Mercado Pago online!", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -50,14 +52,12 @@ def webhook():
         return "Webhook online!", 200
 
     payload = request.json
-    print(f"[WEBHOOK] Payload recebido: {payload}")  # Log de tudo que chega
+    print(f"[WEBHOOK] Payload recebido: {payload}")
 
     if not payload or "id" not in payload.get("data", {}):
         return jsonify({"status": "ignored"}), 200
 
     payment_id = payload["data"]["id"]
-
-    # Consulta status do pagamento
     result = sdk.payment().get(payment_id)
     data = result["response"]
 
